@@ -5,7 +5,7 @@ CXX = g++
 CXXFLAGS = -std=c++11 -Wall -g
 
 # Boost libraries
-BOOST_LIBS = -lboost_system -lboost_thread
+BOOST_LIBS = -lboost_system -lboost_thread -lWs2_32 -lwsock32
 
 EXEC = expose proxy_server echo_server
 

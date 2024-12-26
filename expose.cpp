@@ -6,12 +6,15 @@
 using namespace boost::asio;
 using ip::tcp;
 io_context context;
+tcp::resolver resolver(context);
 
 // Arguments
 std::string proxy_server_ip;
 u_short  ctrl_port;
 u_short  proxy_port;
 u_short  target_port;
+
+tcp::endpoint target_endpoint;
 
 class Session : public std::enable_shared_from_this<Session>
 {
@@ -25,29 +28,36 @@ public:
     void do_bridge()
     {
         auto self(shared_from_this());
-        tcp::endpoint proxy_endpoint(ip::make_address(proxy_server_ip), agent_port);
-        proxy.async_connect(proxy_endpoint, [this, self](const boost::system::error_code &ec)
+        resolver.async_resolve(tcp::v4(), proxy_server_ip, std::to_string(agent_port), [this, self](const boost::system::error_code &ec, tcp::resolver::results_type results)
         {
             if (ec)
             {
-                std::cout << "Proxy connection failed" << std::endl;
+                std::cout << "Proxy server not found" << std::endl;
                 return;
             }
-            tcp::endpoint target_endpoint(ip::make_address("127.0.0.1"), target_port);
-            target.async_connect(target_endpoint, [this, self](const boost::system::error_code &ec)
+            async_connect(proxy, results, [this, self](const boost::system::error_code &ec, const tcp::endpoint)
             {
                 if (ec)
                 {
-                    std::cout << "Target connection failed" << std::endl;
+                    std::cout << "Proxy connection failed" << std::endl;
                     return;
                 }
-                std::cout << "Connection created" << std::endl;
-                auto piper = std::make_shared<depipe>(std::move(proxy), std::move(target));
-                piper->pipe();
-                piper->rpipe();
+                target.async_connect(target_endpoint, [this, self](const boost::system::error_code &ec)
+                {
+                    if (ec)
+                    {
+                        std::cout << "Target connection failed" << std::endl;
+                        return;
+                    }
+                    std::cout << "Connection created" << std::endl;
+                    auto piper = std::make_shared<depipe>(std::move(proxy), std::move(target));
+                    piper->pipe();
+                    piper->rpipe();
+                });
             });
         });
     }
+
 private:
     u_short  agent_port;
     std::array<char, 2> buf;
@@ -66,27 +76,33 @@ public:
     void do_request()
     {
         auto self(shared_from_this());
-
-        tcp::endpoint endpoint(ip::make_address(proxy_server_ip), ctrl_port);
-        control.async_connect(endpoint, [this, self](const boost::system::error_code &ec)
+        resolver.async_resolve(tcp::v4(), proxy_server_ip, std::to_string(ctrl_port), [this, self](const boost::system::error_code &ec, tcp::resolver::results_type results)
         {
             if (ec)
             {
                 std::cout << "Proxy server not found" << std::endl;
                 return;
             }
-
-            memcpy(buf.data(), &proxy_port, 2);
-            std::swap(buf[0], buf[1]);
-            async_write(control, buffer(buf), [this, self](const boost::system::error_code &ec, size_t bytes_read)
+            async_connect(control, results, [this, self](const boost::system::error_code &ec, const tcp::endpoint)
             {
                 if (ec)
                 {
-                    std::cout << "Proxy failed" << std::endl;
+                    std::cout << "Proxy server not found" << std::endl;
                     return;
                 }
-                std::cout << "Proxy at " << proxy_server_ip << ":" << proxy_port << std::endl;
-                do_handle_connection();
+
+                memcpy(buf.data(), &proxy_port, 2);
+                std::swap(buf[0], buf[1]);
+                async_write(control, buffer(buf), [this, self](const boost::system::error_code &ec, size_t bytes_read)
+                {
+                    if (ec)
+                    {
+                        std::cout << "Proxy failed" << std::endl;
+                        return;
+                    }
+                    std::cout << "Proxy at " << proxy_server_ip << ":" << proxy_port << std::endl;
+                    do_handle_connection();
+                });
             });
         });
     }
@@ -163,6 +179,7 @@ int main(int argc, char *argv[])
 
     try
     {
+        target_endpoint = tcp::endpoint(ip::make_address("127.0.0.1"), target_port);
         std::make_shared<Agent>(tcp::socket(context))->do_request();
         context.run();
     }
