@@ -1,0 +1,6 @@
+*.exe
+*.o
+expose
+proxy_server
+echo_server
+.vscode/
