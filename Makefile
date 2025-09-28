@@ -29,7 +29,7 @@ endif
 EXEC = expose proxy_server echo_server
 
 # Default target
-all: $(EXEC)
+all: $(EXEC) install-hooks
 
 proxy_server: proxy_server.o
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(BOOST_LIBS)
@@ -44,10 +44,15 @@ echo_server: echo_server.o
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
+# Install git pre-commit hook
+install-hooks:
+	@echo "🔧 Installing pre-commit hook..."
+	@sh -c 'cp .ci/pre-commit.sh .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit'
+	@echo "✅ pre-commit hook installed"
+
 # Clean up build files
 clean:
 	rm -f *.o $(EXEC)
 
 # Phony targets
-.PHONY: all clean
-
+.PHONY: all clean install-hooks
