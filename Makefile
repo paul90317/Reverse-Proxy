@@ -2,7 +2,7 @@
 CXX = g++
 
 # Compiler flags
-CXXFLAGS = -std=c++11 -Wall -g
+CXXFLAGS = -std=c++17 -Wall -g
 
 # Detect OS (Linux vs Windows MinGW / MSYS)
 # NOTE: The "process_begin: CreateProcess(NULL, uname -s, ...) failed" error

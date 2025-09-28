@@ -19,7 +19,7 @@ class Session : public std::enable_shared_from_this<Session> {
 
     tcp::endpoint endpoint(tcp::v4(), 0);
     agent_acceptor.open(endpoint.protocol());
-    agent_acceptor.set_option(tcp::acceptor::reuse_address(false));
+    agent_acceptor.set_option(tcp::acceptor::reuse_address(true));
     agent_acceptor.bind(endpoint);
     agent_acceptor.listen();
 
@@ -72,7 +72,7 @@ class Agent : public std::enable_shared_from_this<Agent> {
                            << std::endl;
                  tcp::endpoint endpoint(tcp::v4(), port);
                  proxy.open(endpoint.protocol());
-                 proxy.set_option(tcp::acceptor::reuse_address(false));
+                 proxy.set_option(tcp::acceptor::reuse_address(true));
                  try {
                    proxy.bind(endpoint);
                  } catch (...) {
@@ -81,24 +81,17 @@ class Agent : public std::enable_shared_from_this<Agent> {
                  }
                  proxy.listen();
                  do_accept();
-                 do_close();
                });
   }
 
  private:
-  void do_close() {
-    control.async_read_some(
-        buffer(buf), [this](const boost::system::error_code &ec, size_t size) {
-          proxy.close();
-          control.close();
-        });
-  }
   void do_accept() {
     auto self(shared_from_this());
     proxy.async_accept(
         [this, self](boost::system::error_code ec, tcp::socket client) {
           if (ec) {
             std::cerr << "Proxy closed at " << port << std::endl;
+            safe_close();
             return;
           }
           std::cout << "New connection at " << proxy.local_endpoint().port()
@@ -109,9 +102,17 @@ class Agent : public std::enable_shared_from_this<Agent> {
         });
   }
 
+  void safe_close() {
+    if (closed.exchange(true)) return;  // already closed
+    boost::system::error_code ignored_ec;
+    proxy.close(ignored_ec);
+    control.close(ignored_ec);
+  }
+
   std::array<char, 2> buf;
   tcp::socket control;
   tcp::acceptor proxy;
+  std::atomic<bool> closed{false};
   u_short port;
 };
 
@@ -120,7 +121,7 @@ class Server : public std::enable_shared_from_this<Server> {
   Server(u_short port) : acceptor(context) {
     tcp::endpoint endpoint(tcp::v4(), port);
     acceptor.open(endpoint.protocol());
-    acceptor.set_option(tcp::acceptor::reuse_address(false));
+    acceptor.set_option(tcp::acceptor::reuse_address(true));
     acceptor.bind(endpoint);
     acceptor.listen();
   }

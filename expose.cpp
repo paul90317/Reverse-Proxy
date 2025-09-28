@@ -23,6 +23,7 @@ class Session : public std::enable_shared_from_this<Session> {
 
   void do_bridge() {
     auto self(shared_from_this());
+    std::cout << "Connection creating" << std::endl;
     resolver.async_resolve(
         tcp::v4(), proxy_server_ip, std::to_string(agent_port),
         [this, self](const boost::system::error_code &ec,
@@ -58,7 +59,6 @@ class Session : public std::enable_shared_from_this<Session> {
 
  private:
   u_short agent_port;
-  std::array<char, 2> buf;
   tcp::socket proxy;
   tcp::socket target;
 };
@@ -106,6 +106,7 @@ class Agent : public std::enable_shared_from_this<Agent> {
  private:
   void do_handle_connection() {
     auto self(shared_from_this());
+    // looply wait for new connection from proxy server
     async_read(
         control, buffer(buf),
         [this, self](const boost::system::error_code &ec, size_t bytes_read) {

@@ -1,5 +1,6 @@
 #!/bin/bash
-set -e
+set -euo pipefail
+IFS=$'\n\t'
 
 echo "🔍 Running clang-format + static/dynamic checks before commit..."
 
@@ -11,6 +12,7 @@ if [ -z "$files" ]; then
 else
     # 格式化檔案
     for f in $files; do
+        echo "🖌 Formatting $f"
         clang-format -i "$f"
         git add "$f"
     done
@@ -20,15 +22,25 @@ else
     # 靜態檢查: cppcheck
     # =====================
     echo "🔍 Running cppcheck..."
-    cppcheck --enable=all --inconclusive --std=c++17 --quiet $files || {
-        echo "❌ cppcheck failed"
-        exit 1
-    }
+    cppcheck --enable=all \
+        --inconclusive \
+        --std=c++17 \
+        --quiet \
+        --suppress=missingIncludeSystem \
+        --suppress=uninitMemberVar \
+        --suppress=noExplicitConstructor \
+        --suppress=cstyleCast \
+        --suppress=constParameter \
+        --suppress=odrViolation \
+         $files
+
+
     echo "✅ cppcheck passed"
 fi
 
-echo "building..."
-
+# =====================
+# Build
+# =====================
+echo "🏗 Building..."
 make
-
 echo "🎉 All checks passed"

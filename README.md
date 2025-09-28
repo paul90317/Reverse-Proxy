@@ -64,10 +64,10 @@ export PROXY_HOST=<your_proxy_server_ip>:5000
 
 ```bash
 # Format all C++ files according to .clang-format
-clang-format -i *.cpp *.h
+clang-format -i *.cpp *.hpp
 
 # Run static analysis
-cppcheck --enable=all --inconclusive --std=c++11 --quiet *.cpp *.h
+cppcheck --enable=all --inconclusive --std=c++11 --quiet *.cpp *.hpp
 ```
 
 
