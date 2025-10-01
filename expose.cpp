@@ -111,6 +111,7 @@ class Agent : public std::enable_shared_from_this<Agent> {
         control, buffer(buf),
         [this, self](const boost::system::error_code &ec, size_t bytes_read) {
           if (ec) {
+            std::cout << "Lose connection\n";
             return;
           }
           std::swap(buf[0], buf[1]);
@@ -167,12 +168,17 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-  try {
-    target_endpoint = tcp::endpoint(ip::make_address("127.0.0.1"), target_port);
-    std::make_shared<Agent>(tcp::socket(context))->do_request();
-    context.run();
-  } catch (std::exception &e) {
-    std::cerr << "Agent error: " << e.what() << std::endl;
+  while (true) {
+    try {
+      target_endpoint =
+          tcp::endpoint(ip::make_address("127.0.0.1"), target_port);
+      std::make_shared<Agent>(tcp::socket(context))->do_request();
+      context.run();
+      context.restart();
+      std::this_thread::sleep_for(std::chrono::seconds(3));  // 暫停 3 秒
+    } catch (std::exception &e) {
+      std::cerr << "Agent error: " << e.what() << std::endl;
+    }
   }
 
   return 0;

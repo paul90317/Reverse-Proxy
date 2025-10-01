@@ -12,10 +12,12 @@ class Session : public std::enable_shared_from_this<Session> {
  public:
   Session(tcp::socket _client)
       : client(std::move(_client)), agent_acceptor(context) {}
+
   void do_connect_agent(tcp::socket *control) {
     auto self(shared_from_this());
 
     tcp::endpoint endpoint(tcp::v4(), 0);
+
     agent_acceptor.open(endpoint.protocol());
     agent_acceptor.set_option(tcp::acceptor::reuse_address(true));
     agent_acceptor.bind(endpoint);
@@ -34,10 +36,10 @@ class Session : public std::enable_shared_from_this<Session> {
 
           agent_acceptor.async_accept([this, self](boost::system::error_code ec,
                                                    tcp::socket agent) {
+            agent_acceptor.close();
             if (ec) {
               return;
             }
-            agent_acceptor.close();
             std::cout << "Connection created" << std::endl;
             auto piper =
                 std::make_shared<depipe>(std::move(client), std::move(agent));
@@ -65,8 +67,7 @@ class Agent : public std::enable_shared_from_this<Agent> {
                  }
                  std::swap(buf[0], buf[1]);
                  port = *reinterpret_cast<u_short *>(buf.data());
-                 std::cout << "New proxy request the port " << port
-                           << std::endl;
+                 std::cout << "New proxy requested port " << port << std::endl;
                  tcp::endpoint endpoint(tcp::v4(), port);
                  proxy.open(endpoint.protocol());
                  proxy.set_option(tcp::acceptor::reuse_address(true));
@@ -77,6 +78,7 @@ class Agent : public std::enable_shared_from_this<Agent> {
                    return;
                  }
                  proxy.listen();
+                 std::cout << "Proxy created at port " << port << std::endl;
                  do_accept();
                  do_check_control();
                });
@@ -88,11 +90,11 @@ class Agent : public std::enable_shared_from_this<Agent> {
     proxy.async_accept([this, self](boost::system::error_code ec,
                                     tcp::socket client) {
       if (ec) {
-        std::cerr << "Proxy closed at " << port << std::endl;
+        std::cerr << "Proxy at " << port << " closed\n";
         return;
       }
-      std::cout << "New connection at " << proxy.local_endpoint().port()
-                << std::endl;
+      std::cout << "A client try to connect the port "
+                << proxy.local_endpoint().port() << std::endl;
       std::make_shared<Session>(std::move(client))->do_connect_agent(&control);
       do_accept();
     });
@@ -104,7 +106,7 @@ class Agent : public std::enable_shared_from_this<Agent> {
         buffer(buf), [this, self](boost::system::error_code ec, std::size_t) {
           // agent don't read the data from control
           // so when this handler executed, it must be an error
-          proxy.close();
+          proxy.cancel();
         });
   }
 
