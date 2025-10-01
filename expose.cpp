@@ -21,7 +21,7 @@ class Session : public std::enable_shared_from_this<Session> {
   Session(u_short _agent_port)
       : agent_port(_agent_port), proxy(context), target(context) {}
 
-  void do_bridge() {
+  void do_accept() {
     auto self(shared_from_this());
     std::cout << "Connection creating" << std::endl;
     resolver.async_resolve(
@@ -116,8 +116,7 @@ class Agent : public std::enable_shared_from_this<Agent> {
           }
           std::swap(buf[0], buf[1]);
           u_short port = *(u_short *)buf.data();
-          std::cout << "New random port at " << port << std::endl;
-          std::make_shared<Session>(port)->do_bridge();
+          std::make_shared<Session>(port)->do_accept();
           do_handle_connection();
         });
   }

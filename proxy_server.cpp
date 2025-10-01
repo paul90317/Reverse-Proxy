@@ -25,7 +25,6 @@ class Session : public std::enable_shared_from_this<Session> {
 
     u_short port = agent_acceptor.local_endpoint().port();
     memcpy(buf.data(), &port, 2);
-    std::cout << "New random port at " << port << std::endl;
     std::swap(buf[0], buf[1]);
     async_write(
         *control, buffer(buf),
