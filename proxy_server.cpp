@@ -151,6 +151,13 @@ int main(int argc, char *argv[]) {
     return 1;
   }
   try {
+    signal_set signals(context, SIGINT, SIGTERM);
+    signals.async_wait(
+        [](const boost::system::error_code &ec, int signal_number) {
+          if (!ec) {
+            context.stop();
+          }
+        });
     std::make_shared<Server>(control_port)->do_accept();
     std::cout << "Server started on port " << control_port << std::endl;
     context.run();

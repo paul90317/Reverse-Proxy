@@ -65,7 +65,7 @@ class Session : public std::enable_shared_from_this<Session> {
 
 class Agent : public std::enable_shared_from_this<Agent> {
  public:
-  Agent(tcp::socket _control) : control(std::move(_control)) {}
+  Agent() : control(context), retry_timer(context) {}
 
   void do_request() {
     auto self(shared_from_this());
@@ -75,6 +75,7 @@ class Agent : public std::enable_shared_from_this<Agent> {
                      tcp::resolver::results_type results) {
           if (ec) {
             std::cout << "Proxy server not found" << std::endl;
+            do_retry();
             return;
           }
           async_connect(control, results,
@@ -82,6 +83,7 @@ class Agent : public std::enable_shared_from_this<Agent> {
                                      const tcp::endpoint) {
                           if (ec) {
                             std::cout << "Proxy server not found" << std::endl;
+                            do_retry();
                             return;
                           }
 
@@ -112,6 +114,7 @@ class Agent : public std::enable_shared_from_this<Agent> {
         [this, self](const boost::system::error_code &ec, size_t bytes_read) {
           if (ec) {
             std::cout << "Lose connection\n";
+            do_retry();
             return;
           }
           std::swap(buf[0], buf[1]);
@@ -121,9 +124,23 @@ class Agent : public std::enable_shared_from_this<Agent> {
         });
   }
 
+  void do_retry() {
+    auto self(shared_from_this());
+    control.close();
+    retry_timer.expires_after(std::chrono::seconds(3));
+    std::cout << "Retry after 3 seconds\n";
+    retry_timer.async_wait([this, self](const boost::system::error_code &ec) {
+      if (ec) {
+        return;
+      }
+      do_request();
+    });
+  }
+
  private:
   std::array<char, 2> buf;
   tcp::socket control;
+  boost::asio::steady_timer retry_timer;
 };
 
 int main(int argc, char *argv[]) {
@@ -167,17 +184,20 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-  while (true) {
-    try {
-      target_endpoint =
-          tcp::endpoint(ip::make_address("127.0.0.1"), target_port);
-      std::make_shared<Agent>(tcp::socket(context))->do_request();
-      context.run();
-      context.restart();
-      std::this_thread::sleep_for(std::chrono::seconds(3));  // 暫停 3 秒
-    } catch (std::exception &e) {
-      std::cerr << "Agent error: " << e.what() << std::endl;
-    }
+  try {
+    signal_set signals(context, SIGINT, SIGTERM);
+    signals.async_wait(
+        [](const boost::system::error_code &ec, int signal_number) {
+          if (!ec) {
+            context.stop();
+          }
+        });
+
+    target_endpoint = tcp::endpoint(ip::make_address("127.0.0.1"), target_port);
+    std::make_shared<Agent>()->do_request();
+    context.run();
+  } catch (std::exception &e) {
+    std::cerr << "Agent error: " << e.what() << std::endl;
   }
 
   return 0;
