@@ -1,50 +1,73 @@
+
 # Reverse Proxy
 
-A tool to map internal network server ports to external computers, allowing clients to access internal servers.
+A reverse proxy allows you to expose a local server that is located behind a NAT or firewall to the Internet [[1]](https://github.com/fatedier/frp). It currently supports TCP-based protocols, enabling requests to be forwarded to internal services via domain name or IP address.
+
+
+## Highlights
+
+* A C++ implementation of [frp](https://github.com/fatedier/frp), so no Go runtime installation is required.
+* Unlike [ngrok](https://ngrok.com/), the proxy server can be deployed anywhere, which helps reduce propagation delay compared to connecting through ngrok’s global service.
 
 ## How It Works
 
-![img1.png](img1.png)
+This app does not directly forward traffic to your upstream services using IP addresses. Instead, you run a small piece of software alongside your service, called an *exposer*. The exposer establishes TCP connections to the proxy server. When traffic reaches your endpoints at the proxy server, it is transmitted to the exposer through these connections, and finally forwarded to your upstream service [[2]](https://ngrok.com/docs/how-ngrok-works/).
 
-The process works in three stages:
 
-1. **First Stage**: The proxy server listens on port 5000 for expose commands from the internal network.
-
-2. **Second Stage**: The exposer connects to port 5000 and sends the required port to listen on (in this case, 80).
-
-3. **Third Stage**: The client connects to the proxy server, and the proxy server:
-   - Assigns a random available port based on the previous connection
-   - Waits for the connection from the exposer
-   - The exposer connects to both the local server and the proxy server
-   - A TCP connection is established
+![img1.png](img1.png)。
 
 ## Setup and Usage
 
-### Prepare Makefile
+### 1️⃣ Install dependencies
 
-Choose the appropriate Makefile for your system:
+#### Linux (Ubuntu/Debian)
 
 ```bash
-# For Windows 11
-cp win11/Makefile Makefile
+sudo apt update
 
-# For Ubuntu
-cp ubuntu/Makefile Makefile
+# Minimal Boost for your C++ project
+sudo apt install -y g++ make libboost-system-dev libboost-thread-dev
+
+# Static analysis & formatting tools
+sudo apt install -y cppcheck clang-format
 ```
 
-### Running the Proxy Server
+---
+
+### 2️⃣ Build your project
 
 ```bash
+# Compile all executables
 make
+```
+
+---
+
+### 3️⃣ Run the Proxy Server
+
+```bash
 ./proxy_server 5000
 ```
 
-### Running the Exposer
+---
+
+### 4️⃣ Run the Exposer
 
 ```bash
-make
 export PROXY_HOST=<your_proxy_server_ip>:5000
 ./expose 80:80
+```
+
+---
+
+### 5️⃣ Run static analysis & formatting
+
+```bash
+# Format all C++ files according to .clang-format
+clang-format -i *.cpp *.h
+
+# Run static analysis
+cppcheck --enable=all --inconclusive --std=c++11 --quiet *.cpp *.h
 ```
 
 
