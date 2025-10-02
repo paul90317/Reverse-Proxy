@@ -11,7 +11,7 @@ io_context context;
 class Session : public std::enable_shared_from_this<Session> {
  public:
   Session(tcp::socket _client)
-      : client(std::move(_client)), agent_acceptor(context) {}
+      : client(std::move(_client)), agent_acceptor(context), timer(context) {}
 
   void do_connect_agent(tcp::socket *control) {
     auto self(shared_from_this());
@@ -33,9 +33,17 @@ class Session : public std::enable_shared_from_this<Session> {
             return;
           }
 
+          timer.expires_after(std::chrono::seconds(5));
+          timer.async_wait([this, self](const boost::system::error_code &ec) {
+            if (!ec) {
+              agent_acceptor.cancel();
+              std::cout << "Timeout, closing agent_acceptor" << std::endl;
+            }
+          });
+
           agent_acceptor.async_accept([this, self](boost::system::error_code ec,
                                                    tcp::socket agent) {
-            agent_acceptor.close();
+            timer.cancel();
             if (ec) {
               return;
             }
@@ -52,6 +60,7 @@ class Session : public std::enable_shared_from_this<Session> {
   std::array<char, 2> buf;
   tcp::socket client;
   tcp::acceptor agent_acceptor;
+  boost::asio::steady_timer timer;  // 用於 timeout
 };
 
 class Agent : public std::enable_shared_from_this<Agent> {
