@@ -9,12 +9,11 @@ io_context context;
 tcp::resolver resolver(context);
 
 // Arguments
-std::string proxy_server_ip;
-u_short ctrl_port;
+std::string proxy_host;
+std::string ctrl_port;
 u_short proxy_port;
-u_short target_port;
-
-tcp::endpoint target_endpoint;
+std::string target_host = "127.0.0.1";
+std::string target_port;
 
 using ConnectHandler =
     std::function<void(const boost::system::error_code &, const tcp::endpoint)>;
@@ -37,21 +36,24 @@ void async_resolve_and_connect(tcp::socket &socket, const std::string host,
 class Session : public std::enable_shared_from_this<Session> {
  public:
   Session(u_short _agent_port)
-      : agent_port(_agent_port), proxy(context), target(context) {}
+      : agent_port(std::to_string(_agent_port)),
+        proxy(context),
+        target(context) {}
 
   void do_accept() {
     auto self(shared_from_this());
     std::cout << "Connection creating" << std::endl;
     async_resolve_and_connect(
-        proxy, proxy_server_ip, std::to_string(agent_port),
+        proxy, proxy_host, agent_port,
         [this, self](const boost::system::error_code &ec, const tcp::endpoint) {
           if (ec) {
             std::cout << "Proxy connection failed" << std::endl;
             return;
           }
-          target.async_connect(
-              target_endpoint,
-              [this, self](const boost::system::error_code &ec) {
+          async_resolve_and_connect(
+              target, target_host, target_port,
+              [this, self](const boost::system::error_code &ec,
+                           const tcp::endpoint) {
                 if (ec) {
                   std::cout << "Target connection failed" << std::endl;
                   return;
@@ -66,7 +68,7 @@ class Session : public std::enable_shared_from_this<Session> {
   }
 
  private:
-  u_short agent_port;
+  std::string agent_port;
   tcp::socket proxy;
   tcp::socket target;
 };
@@ -78,7 +80,7 @@ class Agent : public std::enable_shared_from_this<Agent> {
   void do_request() {
     auto self(shared_from_this());
     async_resolve_and_connect(
-        control, proxy_server_ip, std::to_string(ctrl_port),
+        control, proxy_host, ctrl_port,
         [this, self](const boost::system::error_code &ec, const tcp::endpoint) {
           if (ec) {
             std::cout << "Proxy server not found" << std::endl;
@@ -95,7 +97,7 @@ class Agent : public std::enable_shared_from_this<Agent> {
                           std::cout << "Proxy failed" << std::endl;
                           return;
                         }
-                        std::cout << "Proxy at " << proxy_server_ip << ":"
+                        std::cout << "Proxy at " << proxy_host << ":"
                                   << proxy_port << std::endl;
                         do_handle_connection();
                       });
@@ -140,44 +142,56 @@ class Agent : public std::enable_shared_from_this<Agent> {
   boost::asio::steady_timer retry_timer;
 };
 
-int main(int argc, char *argv[]) {
-  char *ptr = std::getenv("PROXY_HOST");
-  if (ptr == nullptr) {
-    std::cerr << "Environment variable PROXY_HOST not set\n";
-    return 1;
+std::vector<std::string> split(const std::string &s, char delimiter) {
+  std::vector<std::string> tokens;
+  std::string token;
+  std::istringstream tokenStream(s);
+
+  // 使用 std::getline 配合分隔符號來提取每個部分
+  while (std::getline(tokenStream, token, delimiter)) {
+    tokens.push_back(token);
   }
+  return tokens;
+}
+
+int main(int argc, char *argv[]) {
   try {
+    char *ptr = std::getenv("PROXY_HOST");
+    if (ptr == nullptr) {
+      throw;
+    }
     std::string proxy_server_link(ptr);
     size_t delimiter = proxy_server_link.find(':');
     if (delimiter == std::string::npos) {
-      std::cerr << "Environment variable PROXY_HOST should follow the format "
-                   "<server_ip>:<server_port>\n";
-      return 1;
+      throw;
     }
-    proxy_server_ip = proxy_server_link.substr(0, delimiter);
-    ctrl_port = std::stoi(proxy_server_link.substr(delimiter + 1));
+    proxy_host = proxy_server_link.substr(0, delimiter);
+    ctrl_port = proxy_server_link.substr(delimiter + 1);
   } catch (...) {
     std::cerr << "Environment variable PROXY_HOST should follow the format "
-                 "<server_ip>:<server_port>\n";
-    return 1;
-  }
-
-  if (argc != 2) {
-    std::cerr << "Usage: expose <proxy_port>:<target_port>\n";
+                 "<proxy_host>:<ctrl_port>\n";
     return 1;
   }
 
   try {
-    std::string proxy_target = argv[1];
-    size_t delimiter = proxy_target.find(':');
-    if (delimiter == std::string::npos) {
-      std::cerr << "Usage: expose <proxy_port>:<target_port>\n";
-      return 1;
+    if (argc != 2) {
+      throw;
     }
-    proxy_port = std::stoi(proxy_target.substr(0, delimiter));
-    target_port = std::stoi(proxy_target.substr(delimiter + 1));
+    auto temp = split(argv[1], ':');
+    proxy_port = std::stoi(temp[0]);
+    switch (temp.size()) {
+      case 2:
+        target_port = temp[1];
+        break;
+      case 3:
+        target_host = temp[1];
+        target_port = temp[2];
+        break;
+      default:
+        throw;
+    }
   } catch (...) {
-    std::cerr << "Usage: expose <proxy_port>:<target_port>\n";
+    std::cerr << "Usage: expose <proxy_port>:[<target_host>:]<target_port>";
     return 1;
   }
 
@@ -189,8 +203,6 @@ int main(int argc, char *argv[]) {
             context.stop();
           }
         });
-
-    target_endpoint = tcp::endpoint(ip::make_address("127.0.0.1"), target_port);
     std::make_shared<Agent>()->do_request();
     context.run();
   } catch (std::exception &e) {
