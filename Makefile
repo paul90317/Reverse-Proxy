@@ -5,39 +5,31 @@ CXX = g++
 CXXFLAGS = -std=c++17 -Wall -g
 
 # Detect OS (Linux vs Windows MinGW / MSYS)
-# NOTE: The "process_begin: CreateProcess(NULL, uname -s, ...) failed" error
-# is expected if running in PowerShell/Cmd, but the 'else' block below
-# ensures the correct Windows libraries are used anyway.
 UNAME_S := $(shell uname -s)
 
 ifeq ($(UNAME_S),Linux)
-    # Use $(info ...) to print messages during parsing
     $(info 🐧 Linux: Using core Boost libraries only)
     BOOST_LIBS = -lboost_system -lboost_thread
+    EXE_EXT =
 
 else ifeq ($(UNAME_S),Darwin)
     $(info 🍎 macOS: Using core Boost libraries only)
     BOOST_LIBS = -lboost_system -lboost_thread
+    EXE_EXT =
 
 else
-    # 🪟 Windows (Catches MINGW, CYGWIN, and other Windows shells)
     $(info 🪟 Windows: Including Winsock libraries (-lWs2_32 -lmswsock))
     BOOST_LIBS = -lboost_system -lboost_thread -lWs2_32 -lmswsock
-
+    EXE_EXT = .exe
 endif
 
-EXEC = expose proxy_server echo_server
+EXEC = expose$(EXE_EXT) proxy_server$(EXE_EXT) echo_server$(EXE_EXT)
 
 # Default target
 all: $(EXEC) install-hooks
 
-proxy_server: proxy_server.o
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(BOOST_LIBS)
-
-expose: expose.o
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(BOOST_LIBS)
-
-echo_server: echo_server.o
+# Generic rule: build <target>$(EXE_EXT) from <target>.o
+%$(EXE_EXT): %.o
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(BOOST_LIBS)
 
 # Compile source files into object files
