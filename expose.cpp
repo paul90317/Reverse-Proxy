@@ -158,12 +158,12 @@ int main(int argc, char *argv[]) {
   try {
     char *ptr = std::getenv("PROXY_HOST");
     if (ptr == nullptr) {
-      throw;
+      throw std::invalid_argument("");
     }
     std::string proxy_server_link(ptr);
     size_t delimiter = proxy_server_link.find(':');
     if (delimiter == std::string::npos) {
-      throw;
+      throw std::invalid_argument("");
     }
     proxy_host = proxy_server_link.substr(0, delimiter);
     ctrl_port = proxy_server_link.substr(delimiter + 1);
@@ -175,7 +175,7 @@ int main(int argc, char *argv[]) {
 
   try {
     if (argc != 2) {
-      throw;
+      throw std::invalid_argument("");
     }
     auto temp = split(argv[1], ':');
     proxy_port = std::stoi(temp[0]);
@@ -188,7 +188,7 @@ int main(int argc, char *argv[]) {
         target_port = temp[2];
         break;
       default:
-        throw;
+        throw std::invalid_argument("");
     }
   } catch (...) {
     std::cerr << "Usage: expose <proxy_port>:[<target_host>:]<target_port>";
@@ -206,7 +206,7 @@ int main(int argc, char *argv[]) {
     std::make_shared<Agent>()->do_request();
     context.run();
   } catch (std::exception &e) {
-    std::cerr << "Agent error: " << e.what() << std::endl;
+    std::cerr << "error: " << e.what() << std::endl;
   }
 
   return 0;
