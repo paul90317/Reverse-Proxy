@@ -16,6 +16,24 @@ u_short target_port;
 
 tcp::endpoint target_endpoint;
 
+using ConnectHandler =
+    std::function<void(const boost::system::error_code &, const tcp::endpoint)>;
+
+void async_resolve_and_connect(tcp::socket &socket, const std::string host,
+                               const std::string svc, ConnectHandler handler) {
+  resolver.async_resolve(
+      tcp::v4(), host, svc,
+      [handler, &socket](const boost::system::error_code &ec_resolve,
+                         tcp::resolver::results_type results) {
+        if (ec_resolve) {
+          return handler(ec_resolve, tcp::endpoint{});
+        }
+
+        // 解析成功，繼續非同步連線
+        boost::asio::async_connect(socket, results, handler);
+      });
+}
+
 class Session : public std::enable_shared_from_this<Session> {
  public:
   Session(u_short _agent_port)
@@ -24,35 +42,25 @@ class Session : public std::enable_shared_from_this<Session> {
   void do_accept() {
     auto self(shared_from_this());
     std::cout << "Connection creating" << std::endl;
-    resolver.async_resolve(
-        tcp::v4(), proxy_server_ip, std::to_string(agent_port),
-        [this, self](const boost::system::error_code &ec,
-                     tcp::resolver::results_type results) {
+    async_resolve_and_connect(
+        proxy, proxy_server_ip, std::to_string(agent_port),
+        [this, self](const boost::system::error_code &ec, const tcp::endpoint) {
           if (ec) {
-            std::cout << "Proxy server not found" << std::endl;
+            std::cout << "Proxy connection failed" << std::endl;
             return;
           }
-          async_connect(
-              proxy, results,
-              [this, self](const boost::system::error_code &ec,
-                           const tcp::endpoint) {
+          target.async_connect(
+              target_endpoint,
+              [this, self](const boost::system::error_code &ec) {
                 if (ec) {
-                  std::cout << "Proxy connection failed" << std::endl;
+                  std::cout << "Target connection failed" << std::endl;
                   return;
                 }
-                target.async_connect(
-                    target_endpoint,
-                    [this, self](const boost::system::error_code &ec) {
-                      if (ec) {
-                        std::cout << "Target connection failed" << std::endl;
-                        return;
-                      }
-                      std::cout << "Connection created" << std::endl;
-                      auto piper = std::make_shared<depipe>(std::move(proxy),
-                                                            std::move(target));
-                      piper->pipe();
-                      piper->rpipe();
-                    });
+                std::cout << "Connection created" << std::endl;
+                auto piper = std::make_shared<depipe>(std::move(proxy),
+                                                      std::move(target));
+                piper->pipe();
+                piper->rpipe();
               });
         });
   }
@@ -69,39 +77,28 @@ class Agent : public std::enable_shared_from_this<Agent> {
 
   void do_request() {
     auto self(shared_from_this());
-    resolver.async_resolve(
-        tcp::v4(), proxy_server_ip, std::to_string(ctrl_port),
-        [this, self](const boost::system::error_code &ec,
-                     tcp::resolver::results_type results) {
+    async_resolve_and_connect(
+        control, proxy_server_ip, std::to_string(ctrl_port),
+        [this, self](const boost::system::error_code &ec, const tcp::endpoint) {
           if (ec) {
             std::cout << "Proxy server not found" << std::endl;
             do_retry();
             return;
           }
-          async_connect(control, results,
-                        [this, self](const boost::system::error_code &ec,
-                                     const tcp::endpoint) {
-                          if (ec) {
-                            std::cout << "Proxy server not found" << std::endl;
-                            do_retry();
-                            return;
-                          }
 
-                          memcpy(buf.data(), &proxy_port, 2);
-                          std::swap(buf[0], buf[1]);
-                          async_write(
-                              control, buffer(buf),
-                              [this, self](const boost::system::error_code &ec,
-                                           size_t bytes_read) {
-                                if (ec) {
-                                  std::cout << "Proxy failed" << std::endl;
-                                  return;
-                                }
-                                std::cout << "Proxy at " << proxy_server_ip
-                                          << ":" << proxy_port << std::endl;
-                                do_handle_connection();
-                              });
-                        });
+          memcpy(buf.data(), &proxy_port, 2);
+          std::swap(buf[0], buf[1]);
+          async_write(control, buffer(buf),
+                      [this, self](const boost::system::error_code &ec,
+                                   size_t bytes_read) {
+                        if (ec) {
+                          std::cout << "Proxy failed" << std::endl;
+                          return;
+                        }
+                        std::cout << "Proxy at " << proxy_server_ip << ":"
+                                  << proxy_port << std::endl;
+                        do_handle_connection();
+                      });
         });
   }
 
@@ -112,7 +109,7 @@ class Agent : public std::enable_shared_from_this<Agent> {
     async_read(
         control, buffer(buf),
         [this, self](const boost::system::error_code &ec, size_t bytes_read) {
-          if (ec) {
+          if (ec || bytes_read != 2) {
             std::cout << "Lose connection\n";
             do_retry();
             return;
