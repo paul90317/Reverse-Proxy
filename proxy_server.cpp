@@ -10,10 +10,13 @@ io_context context;
 
 class Session : public std::enable_shared_from_this<Session> {
  public:
-  Session(tcp::socket _client)
-      : client(std::move(_client)), agent_acceptor(context), timer(context) {}
+  Session(tcp::socket _client, tcp::socket *_control)
+      : client(std::move(_client)),
+        agent_acceptor(context),
+        timer(context),
+        control(_control) {}
 
-  void do_connect_agent(tcp::socket *control) {
+  void do_connect_agent() {
     auto self(shared_from_this());
 
     tcp::endpoint endpoint(tcp::v4(), 0);
@@ -37,6 +40,7 @@ class Session : public std::enable_shared_from_this<Session> {
           timer.async_wait([this, self](const boost::system::error_code &ec) {
             if (!ec) {
               agent_acceptor.cancel();
+              control->close();
               std::cout << "Timeout, closing agent_acceptor" << std::endl;
             }
           });
@@ -61,6 +65,7 @@ class Session : public std::enable_shared_from_this<Session> {
   tcp::socket client;
   tcp::acceptor agent_acceptor;
   boost::asio::steady_timer timer;  // 用於 timeout
+  tcp::socket *control;
 };
 
 class Agent : public std::enable_shared_from_this<Agent> {
@@ -95,17 +100,18 @@ class Agent : public std::enable_shared_from_this<Agent> {
  private:
   void do_accept() {
     auto self(shared_from_this());
-    proxy.async_accept([this, self](boost::system::error_code ec,
-                                    tcp::socket client) {
-      if (ec) {
-        std::cerr << "Proxy at " << port << " closed\n";
-        return;
-      }
-      std::cout << "A client try to connect the port "
-                << proxy.local_endpoint().port() << std::endl;
-      std::make_shared<Session>(std::move(client))->do_connect_agent(&control);
-      do_accept();
-    });
+    proxy.async_accept(
+        [this, self](boost::system::error_code ec, tcp::socket client) {
+          if (ec) {
+            std::cerr << "Proxy at " << port << " closed\n";
+            return;
+          }
+          std::cout << "A client try to connect the port "
+                    << proxy.local_endpoint().port() << std::endl;
+          std::make_shared<Session>(std::move(client), &control)
+              ->do_connect_agent();
+          do_accept();
+        });
   }
 
   void do_check_control() {
