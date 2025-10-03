@@ -26,11 +26,9 @@ class Session : public std::enable_shared_from_this<Session> {
     agent_acceptor.bind(endpoint);
     agent_acceptor.listen();
 
-    u_short port = agent_acceptor.local_endpoint().port();
-    memcpy(buf.data(), &port, 2);
-    std::swap(buf[0], buf[1]);
+    random_port = agent_acceptor.local_endpoint().port();
     async_write(
-        *control, buffer(buf),
+        *control, buffer(&random_port, 2),
         [this, self](const boost::system::error_code &ec, size_t size) {
           if (ec || size != 2) {
             return;
@@ -61,11 +59,11 @@ class Session : public std::enable_shared_from_this<Session> {
   }
 
  private:
-  std::array<char, 2> buf;
   tcp::socket client;
   tcp::acceptor agent_acceptor;
   boost::asio::steady_timer timer;
   std::shared_ptr<tcp::socket> control;
+  u_short random_port;
 };
 
 class Agent : public std::enable_shared_from_this<Agent> {
@@ -76,28 +74,27 @@ class Agent : public std::enable_shared_from_this<Agent> {
 
   void do_proxy() {
     auto self(shared_from_this());
-    async_read(*control, buffer(buf),
-               [this, self](const boost::system::error_code &ec, size_t size) {
-                 if (ec || size != 2) {
-                   return;
-                 }
-                 std::swap(buf[0], buf[1]);
-                 port = *reinterpret_cast<u_short *>(buf.data());
-                 std::cout << "New proxy requested port " << port << std::endl;
-                 tcp::endpoint endpoint(tcp::v4(), port);
-                 proxy.open(endpoint.protocol());
-                 proxy.set_option(tcp::acceptor::reuse_address(true));
-                 try {
-                   proxy.bind(endpoint);
-                 } catch (...) {
-                   std::cerr << "Failed to bind to port " << port << std::endl;
-                   return;
-                 }
-                 proxy.listen();
-                 std::cout << "Proxy created at port " << port << std::endl;
-                 do_accept();
-                 do_check_control();
-               });
+    async_read(
+        *control, buffer(&proxy_port, 2),
+        [this, self](const boost::system::error_code &ec, size_t size) {
+          if (ec || size != 2) {
+            return;
+          }
+          std::cout << "New proxy requested port " << proxy_port << std::endl;
+          tcp::endpoint endpoint(tcp::v4(), proxy_port);
+          proxy.open(endpoint.protocol());
+          proxy.set_option(tcp::acceptor::reuse_address(true));
+          try {
+            proxy.bind(endpoint);
+          } catch (...) {
+            std::cerr << "Failed to bind to port " << proxy_port << std::endl;
+            return;
+          }
+          proxy.listen();
+          std::cout << "Proxy created at port " << proxy_port << std::endl;
+          do_accept();
+          do_check_control();
+        });
   }
 
  private:
@@ -106,7 +103,7 @@ class Agent : public std::enable_shared_from_this<Agent> {
     proxy.async_accept([this, self](boost::system::error_code ec,
                                     tcp::socket client) {
       if (ec) {
-        std::cerr << "Proxy at " << port << " closed\n";
+        std::cerr << "Proxy at " << proxy_port << " closed\n";
         return;
       }
       std::cout << "A client try to connect the port "
@@ -129,7 +126,7 @@ class Agent : public std::enable_shared_from_this<Agent> {
   std::array<char, 2> buf;
   std::shared_ptr<tcp::socket> control;
   tcp::acceptor proxy;
-  u_short port;
+  u_short proxy_port;
 };
 
 class Server : public std::enable_shared_from_this<Server> {

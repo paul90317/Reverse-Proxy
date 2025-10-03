@@ -88,9 +88,7 @@ class Agent : public std::enable_shared_from_this<Agent> {
             return;
           }
 
-          memcpy(buf.data(), &proxy_port, 2);
-          std::swap(buf[0], buf[1]);
-          async_write(control, buffer(buf),
+          async_write(control, buffer(&proxy_port, 2),
                       [this, self](const boost::system::error_code &ec,
                                    size_t bytes_read) {
                         if (ec) {
@@ -109,16 +107,14 @@ class Agent : public std::enable_shared_from_this<Agent> {
     auto self(shared_from_this());
     // looply wait for new connection from proxy server
     async_read(
-        control, buffer(buf),
+        control, buffer(&random_port, 2),
         [this, self](const boost::system::error_code &ec, size_t bytes_read) {
           if (ec || bytes_read != 2) {
             std::cout << "Lose connection\n";
             do_retry();
             return;
           }
-          std::swap(buf[0], buf[1]);
-          u_short port = *(u_short *)buf.data();
-          std::make_shared<Session>(port)->do_accept();
+          std::make_shared<Session>(random_port)->do_accept();
           do_handle_connection();
         });
   }
@@ -137,7 +133,7 @@ class Agent : public std::enable_shared_from_this<Agent> {
   }
 
  private:
-  std::array<char, 2> buf;
+  u_short random_port;
   tcp::socket control;
   boost::asio::steady_timer retry_timer;
 };
