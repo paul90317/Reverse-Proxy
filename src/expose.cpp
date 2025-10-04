@@ -47,6 +47,7 @@ class Session : public std::enable_shared_from_this<Session> {
         proxy, proxy_host, agent_port,
         [this, self](const boost::system::error_code &ec, const tcp::endpoint) {
           if (ec) {
+            proxy.close();
             std::cout << "Proxy connection failed" << std::endl;
             return;
           }
@@ -55,6 +56,8 @@ class Session : public std::enable_shared_from_this<Session> {
               [this, self](const boost::system::error_code &ec,
                            const tcp::endpoint) {
                 if (ec) {
+                  proxy.close();
+                  target.close();
                   std::cout << "Target connection failed" << std::endl;
                   return;
                 }
@@ -92,6 +95,7 @@ class Agent : public std::enable_shared_from_this<Agent> {
                       [this, self](const boost::system::error_code &ec,
                                    size_t bytes_read) {
                         if (ec) {
+                          do_retry();
                           std::cout << "Proxy failed" << std::endl;
                           return;
                         }
