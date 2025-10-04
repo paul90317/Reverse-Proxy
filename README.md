@@ -33,12 +33,44 @@ sudo apt install -y cppcheck clang-format
 ```
 
 ---
+好 ✅ 我幫你把 README 裡的 **Build 教學段落**整理成跨平台版本：
 
-### 2️⃣ Build your project
+---
+
+## 🚀 Build Your Project
+
+### 1️⃣ Configure
 
 ```bash
-# Compile all executables
-make
+# 建立 git hooks
+git config core.hooksPath .githooks
+
+# 在專案根目錄建立 build/ 資料夾
+mkdir build && cd build
+
+# 產生編譯設定
+cmake ..
+```
+
+---
+
+### 2️⃣ Build
+
+#### 🔹 Linux / macOS
+
+```bash
+# 編譯所有執行檔
+cmake --build .
+```
+
+#### 🔹 Windows (MSVC)
+
+```powershell
+# 編譯 Release 版
+cmake --build . --config Release
+
+# 或編譯 Debug 版
+cmake --build . --config Debug
 ```
 
 ---

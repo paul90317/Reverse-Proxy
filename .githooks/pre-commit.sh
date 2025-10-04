@@ -22,16 +22,12 @@ else
     # 靜態檢查: cppcheck
     # =====================
     echo "🔍 Running cppcheck..."
-    cppcheck --std=c++17 --error-exitcode=1 expose.cpp depipe.hpp
-    cppcheck --std=c++17 --error-exitcode=1 echo_server.cpp depipe.hpp
-    cppcheck --std=c++17 --error-exitcode=1 proxy_server.cpp depipe.hpp
+    cppcheck --std=c++17 --error-exitcode=1 src/expose.cpp include/depipe.hpp
+    cppcheck --std=c++17 --error-exitcode=1 src/echo_server.cpp include/depipe.hpp
+    cppcheck --std=c++17 --error-exitcode=1 src/proxy_server.cpp include/depipe.hpp
 
     echo "✅ cppcheck passed"
 fi
 
-# =====================
-# Build
-# =====================
-echo "🏗 Building..."
-make
+
 echo "🎉 All checks passed"

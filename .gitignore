@@ -5,3 +5,4 @@ proxy_server
 echo_server
 .vscode/
 ./Makefile
+build/
