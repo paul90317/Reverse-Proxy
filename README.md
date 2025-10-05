@@ -42,9 +42,6 @@ sudo apt install -y cppcheck clang-format
 ### 1️⃣ Configure
 
 ```bash
-# 建立 git hooks
-git config core.hooksPath .githooks
-
 # 在專案根目錄建立 build/ 資料夾
 mkdir build && cd build
 
