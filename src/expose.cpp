@@ -88,17 +88,17 @@ class Agent : public std::enable_shared_from_this<Agent> {
             return;
           }
 
-          async_write(control, buffer(&proxy_port, 2),
-                      [this, self](const boost::system::error_code &ec,
-                                   size_t bytes_read) {
-                        if (ec) {
-                          std::cout << "Proxy failed" << std::endl;
-                          return;
-                        }
-                        std::cout << "Proxy at " << proxy_host << ":"
-                                  << proxy_port << std::endl;
-                        do_handle_connection();
-                      });
+          async_write(
+              control, buffer(&proxy_port, 2),
+              [this, self](const boost::system::error_code &ec, size_t size) {
+                if (ec || size != 2) {
+                  std::cout << "Proxy failed" << std::endl;
+                  return;
+                }
+                std::cout << "Proxy at " << proxy_host << ":" << proxy_port
+                          << std::endl;
+                do_handle_connection();
+              });
         });
   }
 
@@ -106,17 +106,16 @@ class Agent : public std::enable_shared_from_this<Agent> {
   void do_handle_connection() {
     auto self(shared_from_this());
     // looply wait for new connection from proxy server
-    async_read(
-        control, buffer(&random_port, 2),
-        [this, self](const boost::system::error_code &ec, size_t bytes_read) {
-          if (ec || bytes_read != 2) {
-            std::cout << "Lose connection\n";
-            do_retry();
-            return;
-          }
-          std::make_shared<Session>(random_port)->do_accept();
-          do_handle_connection();
-        });
+    async_read(control, buffer(&random_port, 2),
+               [this, self](const boost::system::error_code &ec, size_t size) {
+                 if (ec || size != 2) {
+                   std::cout << "Lose connection\n";
+                   do_retry();
+                   return;
+                 }
+                 std::make_shared<Session>(random_port)->do_accept();
+                 do_handle_connection();
+               });
   }
 
   void do_retry() {
