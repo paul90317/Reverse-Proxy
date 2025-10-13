@@ -1,7 +1,7 @@
 
 # Reverse Proxy
 
-A reverse proxy allows you to expose a local server that is located behind a NAT or firewall to the Internet [[1]](https://github.com/fatedier/frp). It currently supports TCP-based protocols, enabling requests to be forwarded to internal services via domain name or IP address.
+A reverse proxy allows you to expose a local server that is located behind a NAT or firewall to the Internet [[1]](https://github.com/fatedier/frp). It currently supports TCP-based protocols—such as **HTTP/HTTPS** for web services, **database connections** (MySQL, PostgreSQL), and **Minecraft** game servers—enabling requests to be forwarded to internal services via domain name or IP address.
 
 ## Existing Solutions
 * [nginx](https://nginx.org/) ("engine x") is an HTTP web server, reverse proxy, content cache, load balancer, and TCP/UDP proxy server.
@@ -13,12 +13,19 @@ A reverse proxy allows you to expose a local server that is located behind a NAT
   but it requires rebinding the port each time a new client connects.
 * This solution is a C++ implementation of [frp](https://github.com/fatedier/frp), so you don't need to install or run the Go runtime.
 
+## Highlights
+
+* **C++ Implementation**: A native C++ port of frp, eliminating the dependency on Go runtime environment and reducing deployment complexity.
+* **Flexible Deployment**: Proxy servers can be deployed anywhere, avoiding the propagation delays inherent in ngrok's centralized infrastructure.
+* **No GatewayPorts Configuration**: Solves the remote accessibility limitations of `ssh -R` without requiring sshd configuration changes.
+* **Persistent Port Binding**: Unlike SOCKS protocol, it maintains stable port bindings without requiring reconnection for each new client.
+
 ## How It Works
 
 This app does not directly forward traffic to your upstream services using IP addresses. Instead, you run a small piece of software alongside your service, called an *exposer*. The exposer establishes TCP connections to the proxy server. When traffic reaches your endpoints at the proxy server, it is transmitted to the exposer through these connections, and finally forwarded to your upstream service [[2]](https://ngrok.com/docs/how-ngrok-works/).
 
 
-![img1.png](img1.png)。
+![img1.png](img1.png)
 
 
 ## Build and Run
