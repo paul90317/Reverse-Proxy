@@ -3,11 +3,11 @@
 
 A reverse proxy allows you to expose a local server that is located behind a NAT or firewall to the Internet [[1]](https://github.com/fatedier/frp). It currently supports TCP-based protocols, enabling requests to be forwarded to internal services via domain name or IP address.
 
-## Related Work
+## Existing Solutions
 * [nginx](https://nginx.org/) ("engine x") is an HTTP web server, reverse proxy, content cache, load balancer, and TCP/UDP proxy server.
   However, it becomes useless when the local port cannot be directly exposed.
 * Unlike [ngrok](https://ngrok.com/), this solution allows the proxy server to be deployed anywhere, reducing propagation delay compared to ngrok's centralized global service.
-* [`ssh -R`](https://linux.die.net/man/1/ssh) forwards given port on the remote (server) host to the given host and port on the local side.
+* [`ssh -R`](https://linux.die.net/man/1/ssh) forwards the given port on the remote (server) host to the given host and port on the local side.
   However, if sshd doesn't set [GatewayPorts](https://linux.die.net/man/5/sshd_config), only loopback addresses can be bound at the remote host, thus prohibiting other hosts from connecting.
 * The bind operation in [SOCKS](https://www.openssh.com/txt/socks4.protocol) allows binding a local port to the proxy,
   but it requires rebinding the port each time a new client connects.
@@ -21,9 +21,9 @@ This app does not directly forward traffic to your upstream services using IP ad
 ![img1.png](img1.png)。
 
 
-## 🚀 Build and Run
+## Build and Run
 
-### 1️⃣ Install Dependencies
+### 1. Install Dependencies
 
 #### Linux (Ubuntu/Debian)
 
@@ -39,7 +39,7 @@ sudo apt install -y cppcheck clang-format
 
 ---
 
-### 2️⃣ Configure the Build
+### 2. Configure the Build
 
 ```bash
 # Create a build/ folder at the project root
@@ -51,16 +51,16 @@ cmake ..
 
 ---
 
-### 3️⃣ Compile
+### 3️. Compile
 
-#### 🔹 Linux / macOS
+#### Linux / macOS
 
 ```bash
 # Build all executables
 cmake --build .
 ```
 
-#### 🔹 Windows (MSVC)
+#### Windows (MSVC)
 
 ```powershell
 # Build for Release
@@ -72,15 +72,13 @@ cmake --build . --config Debug
 
 ---
 
-### 4️⃣ Run the Proxy Server
-
+### 4. Run
+#### The Proxy Server
 ```bash
 ./proxy_server 5000
 ```
 
----
-
-### 5️⃣ Run the Exposer
+#### The Exposer
 
 ```bash
 export PROXY_HOST=<your_proxy_server_ip>:5000
