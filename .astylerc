@@ -1,0 +1,7 @@
+--style=google
+--indent=spaces=4
+--max-code-length=100
+--pad-oper
+--pad-comma
+--break-blocks
+--suffix=none
