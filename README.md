@@ -3,11 +3,15 @@
 
 A reverse proxy allows you to expose a local server that is located behind a NAT or firewall to the Internet [[1]](https://github.com/fatedier/frp). It currently supports TCP-based protocols, enabling requests to be forwarded to internal services via domain name or IP address.
 
-
 ## Highlights
 
-* A C++ implementation of [frp](https://github.com/fatedier/frp), so no Go runtime installation is required.
-* Unlike [ngrok](https://ngrok.com/), the proxy server can be deployed anywhere, which helps reduce propagation delay compared to connecting through ngrok’s global service.
+* A C++ implementation of [frp](https://github.com/fatedier/frp), so you don’t need to install or run the Go runtime.
+* Unlike [ngrok](https://ngrok.com/), the proxy server can be deployed anywhere, reducing propagation delay compared to ngrok’s centralized global service.
+* [nginx](https://nginx.org/) (“engine x”) is an HTTP web server, reverse proxy, content cache, load balancer, and TCP/UDP proxy server.
+  However, it becomes useless when the local port cannot be directly exposed.
+* The bind operation in [SOCKS](https://www.openssh.com/txt/socks4.protocol) allows binding a local port to the proxy,
+  but it requires rebinding the port each time a new client connects.
+
 
 ## How It Works
 
@@ -16,9 +20,10 @@ This app does not directly forward traffic to your upstream services using IP ad
 
 ![img1.png](img1.png)。
 
-## Setup and Usage
 
-### 1️⃣ Install dependencies
+## 🚀 Build and Run
+
+### 1️⃣ Install Dependencies
 
 #### Linux (Ubuntu/Debian)
 
@@ -34,42 +39,40 @@ sudo apt install -y cppcheck clang-format
 
 ---
 
-## 🚀 Build Your Project
-
-### 1️⃣ Configure
+### 2️⃣ Configure the Build
 
 ```bash
-# crate build/ folder at root
+# Create a build/ folder at the project root
 mkdir build && cd build
 
-# generate compiling settings
+# Generate the build configuration
 cmake ..
 ```
 
 ---
 
-### 2️⃣ Build
+### 3️⃣ Compile
 
 #### 🔹 Linux / macOS
 
 ```bash
-# build all execution
+# Build all executables
 cmake --build .
 ```
 
 #### 🔹 Windows (MSVC)
 
 ```powershell
-# build for Release
+# Build for Release
 cmake --build . --config Release
 
-# build for Debug
+# Build for Debug
 cmake --build . --config Debug
 ```
 
 ---
 
-### 3️⃣ Run the Proxy Server
+### 4️⃣ Run the Proxy Server
 
 ```bash
 ./proxy_server 5000
@@ -77,24 +80,10 @@ cmake --build . --config Debug
 
 ---
 
-### 4️⃣ Run the Exposer
+### 5️⃣ Run the Exposer
 
 ```bash
 export PROXY_HOST=<your_proxy_server_ip>:5000
 ./expose 80:80
 ```
-
----
-
-### 5️⃣ Run static analysis & formatting
-
-```bash
-# Format all C++ files according to .clang-format
-clang-format -i *.cpp *.hpp
-
-# Run static analysis
-cppcheck --enable=all --inconclusive --std=c++11 --quiet *.cpp *.hpp
-```
-
-
 
