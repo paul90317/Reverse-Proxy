@@ -4,14 +4,14 @@
 A reverse proxy allows you to expose a local server that is located behind a NAT or firewall to the Internet [[1]](https://github.com/fatedier/frp). It currently supports TCP-based protocols, enabling requests to be forwarded to internal services via domain name or IP address.
 
 ## Related Work
-* [nginx](https://nginx.org/) (“engine x”) is an HTTP web server, reverse proxy, content cache, load balancer, and TCP/UDP proxy server.
+* [nginx](https://nginx.org/) ("engine x") is an HTTP web server, reverse proxy, content cache, load balancer, and TCP/UDP proxy server.
   However, it becomes useless when the local port cannot be directly exposed.
-* Unlike [ngrok](https://ngrok.com/), the proxy server can be deployed anywhere, reducing propagation delay compared to ngrok’s centralized global service.
+* Unlike [ngrok](https://ngrok.com/), this solution allows the proxy server to be deployed anywhere, reducing propagation delay compared to ngrok's centralized global service.
 * [`ssh -R`](https://linux.die.net/man/1/ssh) forwards given port on the remote (server) host to the given host and port on the local side.
-  [GatewayPorts](https://linux.die.net/man/5/sshd_config) can be used to specify that sshd should allow remote port forwardings to bind to non-loopback addresses, thus allowing other hosts to connect.
+  However, if sshd doesn't set [GatewayPorts](https://linux.die.net/man/5/sshd_config), only loopback addresses can be bound at the remote host, thus prohibiting other hosts from connecting.
 * The bind operation in [SOCKS](https://www.openssh.com/txt/socks4.protocol) allows binding a local port to the proxy,
   but it requires rebinding the port each time a new client connects.
-* A C++ implementation of [frp](https://github.com/fatedier/frp), so you don’t need to install or run the Go runtime.
+* This solution is a C++ implementation of [frp](https://github.com/fatedier/frp), so you don't need to install or run the Go runtime.
 
 ## How It Works
 
