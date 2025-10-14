@@ -28,66 +28,20 @@ This app does not directly forward traffic to your upstream services using IP ad
 ![sequence diamgram](docs/assets/sequence%20diagram.png)
 
 
-## Build and Run
+## Build, Run and Contributing
 
-### 1. Install Dependencies
+Core build and contribution instructions live in the project's contribution guide. See:
 
-#### Linux (Ubuntu/Debian)
+- License: [`LICENSE`](./LICENSE) (short: MIT)
+- Contribution & developer setup: [`CONTRIBUTING.md`](./CONTRIBUTING.md)
 
-```bash
-sudo apt update
-
-# Minimal Boost for your C++ project
-sudo apt install -y g++ make libboost-system-dev libboost-thread-dev
-
-# Static analysis & formatting tools
-sudo apt install -y cppcheck clang-format
-```
-
----
-
-### 2. Configure the Build
+If you just want a quick start to build and run the main binaries locally, go to the Releases page, choose a version, download the executable ZIP file for your operating system, then extract it and run:
 
 ```bash
-# Create a build/ folder at the project root
-mkdir build && cd build
-
-# Generate the build configuration
-cmake ..
-```
-
----
-
-### 3️. Compile
-
-#### Linux / macOS
-
-```bash
-# Build all executables
-cmake --build .
-```
-
-#### Windows (MSVC)
-
-```powershell
-# Build for Release
-cmake --build . --config Release
-
-# Build for Debug
-cmake --build . --config Debug
-```
-
----
-
-### 4. Run
-#### The Proxy Server
-```bash
+# For Proxy
 ./proxy_server 5000
-```
 
-#### The Exposer
-
-```bash
+# For Exposer
 export PROXY_HOST=<your_proxy_server_ip>:5000
 ./expose 80:80
 ```
