@@ -25,7 +25,7 @@ A reverse proxy allows you to expose a local server that is located behind a NAT
 This app does not directly forward traffic to your upstream services using IP addresses. Instead, you run a small piece of software alongside your service, called an *exposer*. The exposer establishes TCP connections to the proxy server. When traffic reaches your endpoints at the proxy server, it is transmitted to the exposer through these connections, and finally forwarded to your upstream service [[2]](https://ngrok.com/docs/how-ngrok-works/).
 
 
-![img1.png](img1.png)
+![sequence diamgram](docs/assets/sequence%20diagram.png)
 
 
 ## Build and Run
