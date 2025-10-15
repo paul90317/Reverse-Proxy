@@ -1,4 +1,5 @@
 #include <boost/asio.hpp>
+#include <boost/algorithm/string.hpp>
 #include <iostream>
 #include <thread>
 #include <vector>
@@ -144,19 +145,6 @@ class Agent : public std::enable_shared_from_this<Agent> {
     boost::asio::steady_timer retry_timer;
 };
 
-std::vector<std::string> split(const std::string &s, char delimiter) {
-    std::vector<std::string> tokens;
-    std::string token;
-    std::istringstream tokenStream(s);
-
-    // 使用 std::getline 配合分隔符號來提取每個部分
-    while (std::getline(tokenStream, token, delimiter)) {
-        tokens.push_back(token);
-    }
-
-    return tokens;
-}
-
 int main(int argc, const char *argv[]) {
     try {
         char *ptr = std::getenv("PROXY_HOST");
@@ -184,8 +172,8 @@ int main(int argc, const char *argv[]) {
         if (argc != 2) {
             throw std::invalid_argument("");
         }
-
-        auto temp = split(argv[1], ':');
+        std::vector<std::string> temp;
+        boost::split(temp, argv[1], boost::is_any_of(":"));
         proxy_port = std::stoi(temp[0]);
 
         switch (temp.size()) {
